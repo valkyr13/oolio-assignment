@@ -45,3 +45,23 @@ multiplied or discounted. Whole numbers are always exact.
 **Extensibility:** a payment or billing API that calculates
 totals is a likely next step. Storing integer minor units now
 avoids float errors there and a data migration later.
+
+## 4. No stock tracking; order inputs are capped
+
+**Decision:** No inventory or availability checks. Order
+requests are bounded instead.
+
+**Why no stock:** The spec has no stock field or out-of-stock
+response.
+
+**Input limits (configurable):**
+- Max 50 lines per order
+- Quantity per line: 1 to 100
+- Max request body: 1 MB (413 if exceeded)
+
+**Why:** Unbounded input costs memory and CPU and can overflow
+price arithmetic.
+
+**Duplicate lines:** the same product on several lines is
+merged into one, and the merged quantity is checked against
+the per-line limit.
