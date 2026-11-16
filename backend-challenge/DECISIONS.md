@@ -29,3 +29,19 @@ query parameters, keeping the default response unchanged.
 
 **Why:** This satisfies both parts of the spec and gives the
 400/404 distinction a clear rule.
+
+## 3. Product model and price
+
+**Decision:** Product fields map directly to storage columns
+with matching types, except `price`.
+
+**Price:** stored as a whole number of minor units
+(1250 = 12.50) and converted to a decimal only in JSON.
+
+**Why:** Floats cannot store most decimal amounts exactly
+(0.1 + 0.2 != 0.3), which causes errors once prices are
+multiplied or discounted. Whole numbers are always exact.
+
+**Extensibility:** a payment or billing API that calculates
+totals is a likely next step. Storing integer minor units now
+avoids float errors there and a data migration later.
