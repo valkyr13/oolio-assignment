@@ -65,3 +65,22 @@ price arithmetic.
 **Duplicate lines:** the same product on several lines is
 merged into one, and the merged quantity is checked against
 the per-line limit.
+
+
+## 5. API key authentication
+
+**Decision:** POST /order requires an `api_key` header holding
+a static key. Keys are loaded from config, each mapped to a set
+of scopes.
+
+- Missing or unknown key: 401
+- Known key without the `create_order` scope: 403
+
+
+**Implementation notes:**
+- Keys are compared in constant time.
+- Lookup sits behind a `KeyStore` interface, so config can be
+  replaced by a database or auth service.
+- Multiple keys are supported, which allows rotation without
+  downtime.
+- Keys are never logged.
