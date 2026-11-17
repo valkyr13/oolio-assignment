@@ -129,3 +129,54 @@ map without touching handlers.
 - A retried request creates a second order. The fix is an
   `Idempotency-Key` header: the server remembers the key and
   returns the first order on repeat. Left as a next step.
+
+## 12. Coupon validation
+
+**Rule:** A coupon is valid if it is 8–10 characters long and
+appears in at least 2 of the 3 coupon files.
+
+**What the data showed:**
+- About 313 million codes across the 3 files.
+- Only 8 codes appear in 2 or more files.
+- Some codes repeat inside the same file. These must count
+  as one file, not two.
+- All codes are uppercase letters and digits.
+
+**Design: two separate steps**
+
+1. **Ingest (offline tool, `cmd/ingest`)**
+   - Reads each file line by line, never all at once.
+   - Skips codes that are not 8–10 characters.
+   - Splits codes into small bucket files on disk, so memory
+     stays low no matter how big the files get.
+   - Marks which files each code appears in, and keeps codes
+     found in 2 or more files.
+   - Writes the valid codes to a small file.
+
+2. **Server**
+   - Loads the valid codes into memory at startup.
+   - Checks a coupon by trimming spaces, converting to
+     uppercase, checking the length, then looking it up.
+   - The check sits behind a `CouponValidator` interface, so
+     the storage can change without touching order code.
+
+**Why it is built this way:**
+- Reading 3 GB on every order would take minutes.
+- Loading all 313 million codes into memory would need over
+  10 GB.
+- The valid set is tiny, so a simple in-memory lookup is
+  enough.
+- The valid codes are committed to the repo, so the server
+  starts in seconds without downloading 2 GB.
+
+**Configurable:** the length range, the minimum number of
+files, and the list of input files are settings, not
+hardcoded values.
+
+**When coupon files change:** rerun ingest and restart the
+server. Until then, a new coupon may be rejected, but an
+invalid coupon is never accepted.
+
+**If valid coupons grew to millions:** move them to Postgres
+with a small in-memory cache in front. If the database is
+down, reject coupons rather than accept them unchecked.
