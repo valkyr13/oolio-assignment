@@ -84,3 +84,48 @@ of scopes.
 - Multiple keys are supported, which allows rotation without
   downtime.
 - Keys are never logged.
+
+## 6. Error responses
+
+**Decision:** Every error uses the spec's `ApiResponse` shape:
+- `code`: the HTTP status
+- `type`: a stable machine-readable string, e.g. `invalid_coupon`
+- `message`: a human-readable explanation
+
+**Why:** It is the only error shape the spec defines. Clients
+branch on `type`, never on `message`.
+
+## 7. 400 vs 422
+
+**Decision:**
+- 400: malformed JSON, wrong types, missing required fields
+- 422: well-formed request that breaks a rule (empty `items`,
+  quantity out of range, unknown product, invalid coupon)
+- 413: body over the size limit
+
+**Why:** 400 means "I can't read this"; 422 means "I read it
+and it's not allowed". An unknown product is 422, not 404,
+because the URL exists; the problem is a value in the body.
+
+## 8. Order input edge cases
+
+- Empty `items` array: 422.
+- `couponCode` absent, empty or whitespace-only: no coupon applied.
+- Unknown JSON fields are ignored, so newer clients don't break.
+- Duplicate product lines are merged (see decision 4).
+
+## 9. Order storage and retries
+
+**Decision:** Orders are saved through an `OrderRepository`
+interface, implemented as an in-memory map guarded by a
+`sync.RWMutex`.
+
+**Why:** No GET endpoint exists, but an order that isn't kept
+hasn't been placed. The interface lets a database replace the
+map without touching handlers.
+
+**Known limits:**
+- Orders are lost on restart.
+- A retried request creates a second order. The fix is an
+  `Idempotency-Key` header: the server remembers the key and
+  returns the first order on repeat. Left as a next step.
