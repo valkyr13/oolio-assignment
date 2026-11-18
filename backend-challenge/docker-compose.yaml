@@ -1,0 +1,10 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Demo keys: "apitest" may place orders; "readonly" may not, to show a 403.
+      API_KEYS: "apitest:create_order,readonly:"
+      LOG_FORMAT: text
+    restart: unless-stopped
